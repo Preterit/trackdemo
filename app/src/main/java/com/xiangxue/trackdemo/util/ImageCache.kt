@@ -53,11 +53,9 @@ class ImageCache {
         lruCache = object : LruCache<String, Bitmap>(15504 * 100) {
             //返回一张图片的大小
             override fun sizeOf(key: String?, value: Bitmap?): Int {
-                Log.e("图片大小", "${value?.byteCount}")
-                if (Build.VERSION.SDK_INT > Build.VERSION_CODES.KITKAT) {
-                    return value!!.allocationByteCount
-                }
-                return value!!.byteCount
+                return if (Build.VERSION.SDK_INT > Build.VERSION_CODES.KITKAT) {
+                    value!!.allocationByteCount
+                } else value!!.byteCount
             }
 
             override fun entryRemoved(
@@ -135,8 +133,9 @@ class ImageCache {
 
             val gis = snapshot.getInputStream(0)
             val option = BitmapFactory.Options()
-            option.inBitmap = reusable
+
             option.inMutable = true
+            option.inBitmap = reusable
 
             bitmap = BitmapFactory.decodeStream(gis, null, option)
             if (bitmap != null) {

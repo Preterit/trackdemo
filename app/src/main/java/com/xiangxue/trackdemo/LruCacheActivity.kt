@@ -16,7 +16,7 @@ class LruCacheActivity : AppCompatActivity() {
         setContentView(R.layout.activity_lru_cache)
 
         recyclerView.layoutManager = LinearLayoutManager(this)
-        var adapter = LruAdapter()
+        var adapter = LruAdapter(this)
         recyclerView.adapter = adapter
 
 

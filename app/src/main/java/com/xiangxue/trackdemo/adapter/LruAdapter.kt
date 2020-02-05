@@ -1,5 +1,6 @@
 package com.xiangxue.trackdemo.adapter
 
+import android.app.Activity
 import android.util.Log
 import com.chad.library.adapter.base.BaseQuickAdapter
 import com.chad.library.adapter.base.BaseViewHolder
@@ -12,7 +13,8 @@ import com.xiangxue.trackdemo.util.ImageReSize
  * author:lwb
  * Desc:
  */
-class LruAdapter : BaseQuickAdapter<String, BaseViewHolder>(R.layout.item_lru) {
+class LruAdapter(private val context: Activity) :
+    BaseQuickAdapter<String, BaseViewHolder>(R.layout.item_lru) {
 
     private val TAG = LruAdapter::class.java.name
     private var instance = ImageCache.getInstance()
@@ -34,20 +36,19 @@ class LruAdapter : BaseQuickAdapter<String, BaseViewHolder>(R.layout.item_lru) {
         Log.e(TAG, "使用内存缓存$bitmap")
         if (null == bitmap) {
             val reusable = instance?.getReusable(60, 60, 1)
-            Log.e(TAG, "使用复用缓存$bitmap")
+            Log.e(TAG, "使用复用缓存$reusable")
             bitmap = instance?.getBitmapFromDIsk(helper.layoutPosition.toString(), reusable)
             Log.e(TAG, "使用磁盘缓存$bitmap")
-            //内存磁盘都没有
+            //内存磁盘都没有/网络获取
             if (bitmap == null) {
                 bitmap =
-                    ImageReSize.reSizeBitmap(mContext, R.drawable.tiger, 80, 80, true, reusable)
+                    ImageReSize.reSizeBitmap(context, R.drawable.tiger, 80, 80, true, reusable)
                 //放入内存
                 instance?.putBitmap2Memory(helper.layoutPosition.toString(), bitmap)
                 //放入磁盘
                 instance?.putBitmap2Disk(helper.layoutPosition.toString(), bitmap)
             }
         }
-
         helper.setImageBitmap(R.id.imageView, bitmap)
         helper.addOnClickListener(R.id.imageView)
     }
