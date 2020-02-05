@@ -14,7 +14,14 @@ object ImageReSize {
     /**
      * 压缩图片
      */
-    fun reSizeBitmap(context: Context, id: Int, maxW: Int, maxH: Int, hasAlpha: Boolean,reusable:Bitmap?): Bitmap {
+    fun reSizeBitmap(
+        context: Context,
+        id: Int,
+        maxW: Int,
+        maxH: Int,
+        hasAlpha: Boolean,
+        reusable: Bitmap?
+    ): Bitmap {
         val resources = context.resources
         val options = BitmapFactory.Options()
         //设置位true后，再去解析，就只解析out参数
@@ -37,6 +44,33 @@ object ImageReSize {
         options.inBitmap = reusable
 
 
+        return BitmapFactory.decodeResource(resources, id, options)
+    }
+
+    fun resizeBitmap(
+        context: Context,
+        id: Int,
+        maxW: Int,
+        maxH: Int,
+        hasAlpha: Boolean,
+        reusable: Bitmap?
+    ): Bitmap? {
+        val resources = context.resources
+        val options = BitmapFactory.Options()
+        // 设置为true后，再去解析，就只解析 out 参数
+        options.inJustDecodeBounds = true
+        BitmapFactory.decodeResource(resources, id, options)
+        val w = options.outWidth
+        val h = options.outHeight
+        options.inSampleSize =
+            calcuteInSampleSize(w, h, maxW, maxH)
+        if (!hasAlpha) {
+            options.inPreferredConfig = Bitmap.Config.RGB_565
+        }
+        options.inJustDecodeBounds = false
+        // 复用, inMutable 为true 表示易变
+        options.inMutable = true
+        options.inBitmap = reusable
         return BitmapFactory.decodeResource(resources, id, options)
     }
 

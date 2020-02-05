@@ -3,12 +3,19 @@ package com.xiangxue.trackdemo.util
 import android.app.ActivityManager
 import android.content.Context
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Build
+import android.util.Log
 import android.util.LruCache
+import com.xiangxue.trackdemo.BuildConfig
+import com.xiangxue.trackdemo.disklrucache.DiskLruCache
+import java.io.File
+import java.io.OutputStream
 import java.lang.ref.ReferenceQueue
 import java.lang.ref.WeakReference
 import java.util.*
 import kotlin.collections.HashSet
+
 
 /**
  * Date:2020-02-04
@@ -36,19 +43,21 @@ class ImageCache {
 
     var lruCache: LruCache<String, Bitmap>? = null
     //复用池
-    var reusablePool = Collections.synchronizedSet(HashSet<WeakReference<Bitmap>>())
+    private var reusablePool = Collections.synchronizedSet(HashSet<WeakReference<Bitmap>>())
+    private var diskLruCache: DiskLruCache? = null
 
-    fun init(context: Context) {
+    fun init(context: Context, dir: String) {
         val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
         val cacheSize = am.memoryClass / 8 * 1024 * 1024
-
-        lruCache = object : LruCache<String, Bitmap>(cacheSize) {
+        // 12000*5
+        lruCache = object : LruCache<String, Bitmap>(15504 * 100) {
             //返回一张图片的大小
             override fun sizeOf(key: String?, value: Bitmap?): Int {
+                Log.e("图片大小", "${value?.byteCount}")
                 if (Build.VERSION.SDK_INT > Build.VERSION_CODES.KITKAT) {
-                    return value?.allocationByteCount ?: super.sizeOf(key, value)
+                    return value!!.allocationByteCount
                 }
-                return value?.byteCount ?: super.sizeOf(key, value)
+                return value!!.byteCount
             }
 
             override fun entryRemoved(
@@ -60,10 +69,85 @@ class ImageCache {
                 /**
                  * 回收
                  */
-                reusablePool.add(WeakReference<Bitmap>(oldValue,getReferenceQueue()))
-                oldValue?.recycle()
+//                if (oldValue != null && oldValue.isMutable) {
+//                    reusablePool.add(WeakReference<Bitmap>(oldValue, getReferenceQueue()))
+//                } else {
+//                    oldValue?.recycle()
+//                }
+                if (oldValue!!.isMutable) {
+                    reusablePool.add(
+                        WeakReference(
+                            oldValue,
+                            getReferenceQueue()
+                        )
+                    )
+                } else {
+                    oldValue.recycle()
+                }
             }
         }
+
+        /**
+         * 用于创建DiskLruCache
+         * 参数一：表示磁盘在文件系统中存储的路径
+         * 参数二：表示应用的版本号，一般设为1，当版本号发生改变时，会将之前的缓存信息清空
+         * 参数三：表示单个节点所对应的数据的个数，一般设为1
+         * 参数四：表示缓存的总大小，当缓存大小超过这个设定值后，DiskLruCache会清除一些缓存，从而保证不会超过这个设定值
+         */
+        diskLruCache =
+            DiskLruCache.open(File(dir), BuildConfig.VERSION_CODE, 1, 5 * 1024 * 1024)
+    }
+
+
+    /**
+     * 将图片放入磁盘中
+     */
+    fun putBitmap2Disk(key: String, bitmap: Bitmap) {
+        var snapshot: DiskLruCache.Snapshot? = null
+        var os: OutputStream? = null
+        try {
+            snapshot = diskLruCache?.get(key)
+            //判断磁盘中是否有该资源
+            if (snapshot == null) {
+                val edit = diskLruCache?.edit(key)
+                if (edit != null) {
+                    os = edit.newOutputStream(0)
+                    //压缩图片
+                    bitmap.compress(Bitmap.CompressFormat.PNG, 50, os)
+                    edit.commit()
+                }
+            }
+        } finally {
+            snapshot?.close()
+            os?.close()
+        }
+    }
+
+    fun getBitmapFromDIsk(key: String, reusable: Bitmap?): Bitmap? {
+        var snapshot: DiskLruCache.Snapshot? = null
+        var bitmap: Bitmap? = null
+        try {
+            snapshot = diskLruCache?.get(key)
+            if (snapshot == null) {
+                //磁盘中没有，直接返回
+                return null
+            }
+
+            val gis = snapshot.getInputStream(0)
+            val option = BitmapFactory.Options()
+            option.inBitmap = reusable
+            option.inMutable = true
+
+            bitmap = BitmapFactory.decodeStream(gis, null, option)
+            if (bitmap != null) {
+                lruCache?.put(key, bitmap)
+            }
+
+        } finally {
+            snapshot?.close()
+        }
+
+        return bitmap
     }
 
     private var referenceQueue: ReferenceQueue<Bitmap>? = null
@@ -75,17 +159,19 @@ class ImageCache {
     fun getReferenceQueue(): ReferenceQueue<Bitmap> {
         if (referenceQueue == null) {
             referenceQueue = ReferenceQueue<Bitmap>()
-            Thread {
-                Runnable {
-                    while (!shutDown) {
+            Thread(Runnable {
+                while (!shutDown) {
+                    try {
                         val remove = referenceQueue?.remove()
                         val bitmap = remove?.get()
                         if (bitmap != null && !bitmap.isRecycled) {
                             bitmap.recycle()
                         }
+                    } finally {
+
                     }
                 }
-            }.start()
+            }).start()
         }
         return referenceQueue!!
     }
@@ -93,7 +179,7 @@ class ImageCache {
     /**
      * 将bitmap放到内存中
      */
-    fun bitmap2Memory(key: String, value: Bitmap) {
+    fun putBitmap2Memory(key: String, value: Bitmap) {
         lruCache?.put(key, value)
     }
 

@@ -1,9 +1,9 @@
 package com.xiangxue.trackdemo
 
 import android.content.Intent
-import androidx.appcompat.app.AppCompatActivity
 import android.os.Bundle
-import android.view.View
+import android.os.Environment
+import androidx.appcompat.app.AppCompatActivity
 import androidx.recyclerview.widget.LinearLayoutManager
 import com.xiangxue.trackdemo.adapter.LruAdapter
 import com.xiangxue.trackdemo.util.ImageCache
@@ -19,7 +19,8 @@ class LruCacheActivity : AppCompatActivity() {
         var adapter = LruAdapter()
         recyclerView.adapter = adapter
 
-        ImageCache.getInstance()?.init(this)
+
+        ImageCache.getInstance()?.init(this,Environment.getExternalStorageDirectory().toString()+"/bitmap2")
 
 //        adapter.setOnItemChildClickListener { baseQuickAdapter, view, i ->
 //            pickFile()

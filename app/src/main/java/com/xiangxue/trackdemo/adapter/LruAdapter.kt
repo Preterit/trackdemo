@@ -1,5 +1,6 @@
 package com.xiangxue.trackdemo.adapter
 
+import android.util.Log
 import com.chad.library.adapter.base.BaseQuickAdapter
 import com.chad.library.adapter.base.BaseViewHolder
 import com.xiangxue.trackdemo.R
@@ -13,9 +14,12 @@ import com.xiangxue.trackdemo.util.ImageReSize
  */
 class LruAdapter : BaseQuickAdapter<String, BaseViewHolder>(R.layout.item_lru) {
 
+    private val TAG = LruAdapter::class.java.name
+    private var instance = ImageCache.getInstance()
+
     init {
         var list = arrayListOf<String>()
-        for (index in 1..10) {
+        for (index in 1..1000) {
             list.add("$index")
         }
         replaceData(list)
@@ -26,12 +30,22 @@ class LruAdapter : BaseQuickAdapter<String, BaseViewHolder>(R.layout.item_lru) {
 //        var bitmap:Bitmap = BitmapFactory.decodeResource(mContext.resources,R.drawable.tiger)
 
         //优化
-        var bitmap =
-            ImageCache.getInstance()?.getBitmapFromMemory(helper.layoutPosition.toString())
+        var bitmap = instance?.getBitmapFromMemory(helper.layoutPosition.toString())
+        Log.e(TAG, "使用内存缓存$bitmap")
         if (null == bitmap) {
-            val reusable = ImageCache.getInstance()?.getReusable(60, 60, 1)
-            bitmap =
-                ImageReSize.reSizeBitmap(mContext, R.drawable.tiger, 80, 80, true, reusable)
+            val reusable = instance?.getReusable(60, 60, 1)
+            Log.e(TAG, "使用复用缓存$bitmap")
+            bitmap = instance?.getBitmapFromDIsk(helper.layoutPosition.toString(), reusable)
+            Log.e(TAG, "使用磁盘缓存$bitmap")
+            //内存磁盘都没有
+            if (bitmap == null) {
+                bitmap =
+                    ImageReSize.reSizeBitmap(mContext, R.drawable.tiger, 80, 80, true, reusable)
+                //放入内存
+                instance?.putBitmap2Memory(helper.layoutPosition.toString(), bitmap)
+                //放入磁盘
+                instance?.putBitmap2Disk(helper.layoutPosition.toString(), bitmap)
+            }
         }
 
         helper.setImageBitmap(R.id.imageView, bitmap)

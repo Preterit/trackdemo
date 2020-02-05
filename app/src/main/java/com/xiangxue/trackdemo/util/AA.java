@@ -1,7 +1,13 @@
 package com.xiangxue.trackdemo.util;
 
 import android.graphics.Bitmap;
+import android.os.Environment;
 
+import com.xiangxue.trackdemo.BuildConfig;
+import com.xiangxue.trackdemo.disklrucache.DiskLruCache;
+
+import java.io.File;
+import java.io.IOException;
 import java.lang.ref.WeakReference;
 import java.util.Collections;
 import java.util.HashSet;
@@ -17,6 +23,13 @@ public class AA {
 
 
     public void sss() {
+
+
+        try {
+            DiskLruCache.open(new File(""), BuildConfig.VERSION_CODE, 1, 10 * 1024 * 1024);
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
 
         String.valueOf(1);
