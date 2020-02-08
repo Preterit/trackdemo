@@ -48,30 +48,26 @@ class ImageCache {
 
     fun init(context: Context, dir: String) {
         val am = context.getSystemService(Context.ACTIVITY_SERVICE) as ActivityManager
-        val cacheSize = am.memoryClass / 8 * 1024 * 1024
         // 12000*5
-        lruCache = object : LruCache<String, Bitmap>(15504 * 100) {
+//        val cacheSize = am.memoryClass / 8 * 1024 * 1024
+        val cacheSize: Int = (Runtime.getRuntime().totalMemory() / 1024 / 8).toInt()
+        lruCache = object : LruCache<String, Bitmap>(cacheSize) {
             //返回一张图片的大小
             override fun sizeOf(key: String?, value: Bitmap?): Int {
                 return if (Build.VERSION.SDK_INT > Build.VERSION_CODES.KITKAT) {
-                    value!!.allocationByteCount
-                } else value!!.byteCount
+                    value?.allocationByteCount ?: 1
+                } else value?.byteCount ?: 1
             }
 
+            /**
+             * bitmap内存回收
+             */
             override fun entryRemoved(
                 evicted: Boolean,
                 key: String?,
                 oldValue: Bitmap?,
                 newValue: Bitmap?
             ) {
-                /**
-                 * 回收
-                 */
-//                if (oldValue != null && oldValue.isMutable) {
-//                    reusablePool.add(WeakReference<Bitmap>(oldValue, getReferenceQueue()))
-//                } else {
-//                    oldValue?.recycle()
-//                }
                 if (oldValue!!.isMutable) {
                     reusablePool.add(
                         WeakReference(
